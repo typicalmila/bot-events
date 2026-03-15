@@ -154,6 +154,37 @@
     <div class="stats" id="statsRow">Today: 0 🍅 · Streak: 0 · Focus: 0m</div>
   </div>
   <script>
+    // ── Date utilities ─────────────────────────────────────────────
+    function todayStr() {
+      return new Date().toISOString().slice(0, 10); // YYYY-MM-DD (UTC)
+    }
+
+    function calendarDayGap(dateStrA, dateStrB) {
+      const a = new Date(dateStrA + 'T00:00:00');
+      const b = new Date(dateStrB + 'T00:00:00');
+      return Math.round((b - a) / (1000 * 60 * 60 * 24));
+    }
+
+    // ── Persistence ────────────────────────────────────────────────
+    function loadPersistence() {
+      const today = todayStr();
+      const lastDate = localStorage.getItem('pomo_last_date');
+
+      if (!lastDate) return; // fresh install — keys absent means 0
+
+      const gap = calendarDayGap(lastDate, today);
+
+      if (gap === 0) return; // same day — nothing to reset
+
+      if (gap === 1) {
+        localStorage.setItem('pomo_today_count', '0');
+      } else {
+        // gap > 1 — streak broken
+        localStorage.setItem('pomo_today_count', '0');
+        localStorage.setItem('pomo_streak', '0');
+      }
+    }
+
     // ── Phase cycle ──────────────────────────────────────────────
     const CYCLE = [
       { name: 'FOCUS',      label: 'Focus',      duration: 25 * 60, tab: 'focus' },
@@ -240,7 +271,32 @@
     }
 
     function saveCompletedSession() {
-      // Stub — full implementation in Task 7
+      const today = todayStr();
+      const lastDate = localStorage.getItem('pomo_last_date');
+      const gap = lastDate ? calendarDayGap(lastDate, today) : 999;
+
+      let todayCount = Number(localStorage.getItem('pomo_today_count') || 0);
+      let streak = Number(localStorage.getItem('pomo_streak') || 0);
+      const totalMins = Number(localStorage.getItem('pomo_total_minutes') || 0);
+
+      if (gap > 1) {
+        todayCount = 0;
+        streak = 0;
+      } else if (gap === 1) {
+        todayCount = 0;
+      }
+
+      // First session of a new day (or fresh install)
+      if (todayCount === 0) {
+        streak += 1;
+      }
+
+      todayCount += 1;
+
+      localStorage.setItem('pomo_today_count', String(todayCount));
+      localStorage.setItem('pomo_streak', String(streak));
+      localStorage.setItem('pomo_total_minutes', String(totalMins + 25));
+      localStorage.setItem('pomo_last_date', today);
     }
 
     function onPhaseComplete() {
@@ -420,6 +476,7 @@
     });
 
     // ── Init ──────────────────────────────────────────────────────
+    loadPersistence();
     render();
   </script>
 </body>
