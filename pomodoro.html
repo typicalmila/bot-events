@@ -154,7 +154,209 @@
     <div class="stats" id="statsRow">Today: 0 🍅 · Streak: 0 · Focus: 0m</div>
   </div>
   <script>
-    // JS goes here in subsequent tasks
+    // ── Phase cycle ──────────────────────────────────────────────
+    const CYCLE = [
+      { name: 'FOCUS',      label: 'Focus',      duration: 25 * 60, tab: 'focus' },
+      { name: 'BREAK',      label: 'Break',      duration:  5 * 60, tab: 'break' },
+      { name: 'FOCUS',      label: 'Focus',      duration: 25 * 60, tab: 'focus' },
+      { name: 'BREAK',      label: 'Break',      duration:  5 * 60, tab: 'break' },
+      { name: 'FOCUS',      label: 'Focus',      duration: 25 * 60, tab: 'focus' },
+      { name: 'BREAK',      label: 'Break',      duration:  5 * 60, tab: 'break' },
+      { name: 'FOCUS',      label: 'Focus',      duration: 25 * 60, tab: 'focus' },
+      { name: 'LONG BREAK', label: 'Long Break', duration: 15 * 60, tab: 'long'  },
+    ];
+
+    // ── App state ─────────────────────────────────────────────────
+    let state = 'idle';         // 'idle' | 'running' | 'paused'
+    let cycleIndex = 0;
+    let focusCount = 0;
+    let endTime = null;
+    let remainingOnPause = null;
+    let tickInterval = null;
+    let audioCtx = null;
+    let notifPermissionRequested = false;
+
+    // ── DOM refs ──────────────────────────────────────────────────
+    const phaseIndicator = document.getElementById('phaseIndicator');
+    const timerDisplay   = document.getElementById('timerDisplay');
+    const progressFill   = document.getElementById('progressFill');
+    const btnRestart     = document.getElementById('btnRestart');
+    const btnPlayPause   = document.getElementById('btnPlayPause');
+    const btnSkip        = document.getElementById('btnSkip');
+    const tabs           = document.querySelectorAll('.tab');
+    const statsRow       = document.getElementById('statsRow');
+
+    // ── Helpers ───────────────────────────────────────────────────
+    function formatTime(seconds) {
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    function formatFocusMinutes(mins) {
+      if (mins === 0) return '0m';
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      if (h === 0) return `${m}m`;
+      if (m === 0) return `${h}h`;
+      return `${h}h ${m}m`;
+    }
+
+    function currentPhase() { return CYCLE[cycleIndex]; }
+
+    function getRemaining() {
+      if (state === 'idle')   return currentPhase().duration;
+      if (state === 'paused') return remainingOnPause;
+      return Math.max(0, Math.round((endTime - Date.now()) / 1000));
+    }
+
+    // ── Tick ──────────────────────────────────────────────────────
+    function tick() {
+      const remaining = getRemaining();
+      render();
+      if (remaining <= 0) {
+        onPhaseComplete();
+      }
+    }
+
+    function startTimer() {
+      endTime = Date.now() + currentPhase().duration * 1000;
+      state = 'running';
+      tickInterval = setInterval(tick, 500);
+    }
+
+    function pauseTimer() {
+      remainingOnPause = getRemaining();
+      clearInterval(tickInterval);
+      tickInterval = null;
+      state = 'paused';
+    }
+
+    function resumeTimer() {
+      endTime = Date.now() + remainingOnPause * 1000;
+      state = 'running';
+      tickInterval = setInterval(tick, 500);
+    }
+
+    function onPhaseComplete() {
+      clearInterval(tickInterval);
+      tickInterval = null;
+      // full implementation in Task 6 (Chunk 4) — this stub will be replaced
+      advancePhase();
+    }
+
+    function advancePhase() {
+      const completedPhase = CYCLE[cycleIndex];
+      const isFocus = completedPhase.name === 'FOCUS';
+      const isLongBreak = completedPhase.name === 'LONG BREAK';
+
+      if (isFocus) focusCount++;
+      if (isLongBreak) focusCount = 0;
+
+      cycleIndex = (cycleIndex + 1) % 8;
+
+      endTime = Date.now() + currentPhase().duration * 1000;
+      state = 'running';
+      tickInterval = setInterval(tick, 500);
+      render();
+    }
+
+    function initAudio() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    function requestNotifPermission() {
+      if (notifPermissionRequested) return;
+      notifPermissionRequested = true;
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    }
+
+    // ── Render ────────────────────────────────────────────────────
+    function render() {
+      const phase     = currentPhase();
+      const remaining = getRemaining();
+      const total     = phase.duration;
+      const elapsed   = total - remaining;
+
+      // Phase indicator
+      phaseIndicator.textContent = `${phase.name} · ${focusCount} / 4`;
+
+      // Page title
+      document.title = `${formatTime(remaining)} — ${phase.label}`;
+
+      // Timer
+      timerDisplay.textContent = formatTime(remaining);
+
+      // Progress bar
+      const pct = total > 0 ? (elapsed / total) * 100 : 0;
+      progressFill.style.width = `${pct}%`;
+
+      // Play/pause button icon
+      btnPlayPause.textContent = state === 'running' ? '⏸' : '▶';
+
+      // Active tab
+      tabs.forEach(t => {
+        t.classList.toggle('active', t.dataset.tab === phase.tab);
+      });
+
+      // Stats
+      renderStats();
+    }
+
+    function renderStats() {
+      const count   = Number(localStorage.getItem('pomo_today_count') || 0);
+      const streak  = Number(localStorage.getItem('pomo_streak') || 0);
+      const minutes = Number(localStorage.getItem('pomo_total_minutes') || 0);
+      statsRow.textContent =
+        `Today: ${count} 🍅 · Streak: ${streak} · Focus: ${formatFocusMinutes(minutes)}`;
+    }
+
+    // ── Event listeners ───────────────────────────────────────────
+    btnPlayPause.addEventListener('click', () => {
+      if (state === 'idle')         { initAudio(); requestNotifPermission(); startTimer(); }
+      else if (state === 'running') { pauseTimer(); }
+      else if (state === 'paused')  { resumeTimer(); }
+      render();
+    });
+
+    btnRestart.addEventListener('click', () => {
+      clearInterval(tickInterval);
+      tickInterval = null;
+      state = 'idle';
+      remainingOnPause = null;
+      endTime = null;
+      render();
+    });
+
+    btnSkip.addEventListener('click', () => {
+      clearInterval(tickInterval);
+      tickInterval = null;
+      cycleIndex = (cycleIndex + 1) % 8;
+      state = 'idle';
+      remainingOnPause = null;
+      endTime = null;
+      render();
+    });
+
+    const TAB_CYCLE_INDEX = { focus: 0, break: 1, long: 7 };
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const targetIndex = TAB_CYCLE_INDEX[tab.dataset.tab];
+        clearInterval(tickInterval);
+        tickInterval = null;
+        cycleIndex = targetIndex;
+        state = 'idle';
+        remainingOnPause = null;
+        endTime = null;
+        render();
+      });
+    });
+
+    // ── Init ──────────────────────────────────────────────────────
+    render();
   </script>
 </body>
 </html>
