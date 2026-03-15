@@ -239,31 +239,77 @@
       tickInterval = setInterval(tick, 500);
     }
 
+    function saveCompletedSession() {
+      // Stub — full implementation in Task 7
+    }
+
     function onPhaseComplete() {
       clearInterval(tickInterval);
       tickInterval = null;
-      // full implementation in Task 6 (Chunk 4) — this stub will be replaced
-      advancePhase();
-    }
 
-    function advancePhase() {
+      // 1. Play sound
+      playBell();
+
+      // 2. Notification
+      const nextIndex = (cycleIndex + 1) % 8;
+      const notif = getNotificationContent(cycleIndex, nextIndex);
+      fireNotification(notif.title, notif.body);
+
+      // 3. Update focusCount and persistence
       const completedPhase = CYCLE[cycleIndex];
-      const isFocus = completedPhase.name === 'FOCUS';
-      const isLongBreak = completedPhase.name === 'LONG BREAK';
+      if (completedPhase.name === 'FOCUS') {
+        focusCount++;
+        saveCompletedSession();
+      }
+      if (completedPhase.name === 'LONG BREAK') {
+        focusCount = 0;
+      }
 
-      if (isFocus) focusCount++;
-      if (isLongBreak) focusCount = 0;
+      // 4. Advance cycle
+      cycleIndex = nextIndex;
 
-      cycleIndex = (cycleIndex + 1) % 8;
-
+      // 5. Start next phase
       endTime = Date.now() + currentPhase().duration * 1000;
       state = 'running';
       tickInterval = setInterval(tick, 500);
+
       render();
     }
 
     function initAudio() {
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    function playBell() {
+      if (!audioCtx) return;
+      audioCtx.resume().then(() => {
+        const t = audioCtx.currentTime;
+        // First tone
+        const osc1 = audioCtx.createOscillator();
+        const gain1 = audioCtx.createGain();
+        osc1.connect(gain1);
+        gain1.connect(audioCtx.destination);
+        osc1.frequency.value = 880;
+        osc1.type = 'sine';
+        gain1.gain.setValueAtTime(0, t);
+        gain1.gain.linearRampToValueAtTime(0.3, t + 0.01);
+        gain1.gain.exponentialRampToValueAtTime(0.001, t + 1.2);
+        osc1.start(t);
+        osc1.stop(t + 1.2);
+
+        // Second tone
+        const osc2 = audioCtx.createOscillator();
+        const gain2 = audioCtx.createGain();
+        osc2.connect(gain2);
+        gain2.connect(audioCtx.destination);
+        osc2.frequency.value = 660;
+        osc2.type = 'sine';
+        gain2.gain.setValueAtTime(0, t + 0.15);
+        gain2.gain.linearRampToValueAtTime(0.2, t + 0.16);
+        gain2.gain.exponentialRampToValueAtTime(0.001, t + 1.0);
+        osc2.start(t + 0.15);
+        osc2.stop(t + 1.0);
+      });
     }
 
     function requestNotifPermission() {
@@ -272,6 +318,23 @@
       if ('Notification' in window && Notification.permission === 'default') {
         Notification.requestPermission();
       }
+    }
+
+    function fireNotification(title, body) {
+      if (!('Notification' in window) || Notification.permission !== 'granted') return;
+      new Notification(title, { body, icon: '' });
+    }
+
+    function getNotificationContent(completedIndex, nextIndex) {
+      const completed = CYCLE[completedIndex];
+      const next = CYCLE[nextIndex];
+      if (completed.name === 'FOCUS' && next.name === 'BREAK') {
+        return { title: 'Focus complete', body: 'Time for a 5-minute break.' };
+      }
+      if (completed.name === 'FOCUS' && next.name === 'LONG BREAK') {
+        return { title: 'Focus complete', body: 'Time for your long break — well done!' };
+      }
+      return { title: 'Break over', body: 'Ready for another focus session?' };
     }
 
     // ── Render ────────────────────────────────────────────────────
