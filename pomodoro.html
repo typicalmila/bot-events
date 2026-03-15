@@ -212,6 +212,7 @@
 
     // ── Tick ──────────────────────────────────────────────────────
     function tick() {
+      if (state !== 'running') return;
       const remaining = getRemaining();
       render();
       if (remaining <= 0) {
