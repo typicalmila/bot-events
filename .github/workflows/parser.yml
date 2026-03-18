@@ -1,0 +1,47 @@
+# .github/workflows/parser.yml
+name: Daily Event Parser
+
+on:
+  schedule:
+    - cron: "0 4 * * *"   # 07:00 Moscow (UTC+3)
+  workflow_dispatch:        # manual trigger for testing
+
+jobs:
+  parse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Restore Telethon session
+        run: echo "$TELETHON_SESSION" | base64 -d > events_session.session
+        env:
+          TELETHON_SESSION: ${{ secrets.TELETHON_SESSION }}
+
+      - name: Run parsers
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          TELETHON_APP_ID: ${{ secrets.TELETHON_APP_ID }}
+          TELETHON_APP_HASH: ${{ secrets.TELETHON_APP_HASH }}
+          TELETHON_SESSION: ${{ secrets.TELETHON_SESSION }}
+          TELEGRAM_CHANNELS: ${{ secrets.TELEGRAM_CHANNELS }}
+        run: python -m parser.run
+
+      - name: Update Telethon session secret
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          if [ -f events_session.session ]; then
+            NEW_SESSION=$(base64 -w 0 events_session.session)
+            gh secret set TELETHON_SESSION --body "$NEW_SESSION" --repo ${{ github.repository }}
+          fi

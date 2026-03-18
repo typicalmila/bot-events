@@ -1,0 +1,175 @@
+:root {
+  --bg: var(--tg-theme-bg-color, #111827);
+  --bg2: var(--tg-theme-secondary-bg-color, #1f2937);
+  --text: var(--tg-theme-text-color, #ffffff);
+  --hint: var(--tg-theme-hint-color, #9ca3af);
+  --accent: var(--tg-theme-button-color, #6366f1);
+  --accent-text: var(--tg-theme-button-text-color, #ffffff);
+  --radius: 14px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  overflow-x: hidden;
+  padding-bottom: 60px;
+}
+
+/* Header */
+.header {
+  position: sticky; top: 0; z-index: 10;
+  background: var(--bg);
+  padding: 14px 16px 10px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.header h1 { font-size: 18px; font-weight: 700; }
+.events-count { font-size: 12px; color: var(--hint); margin-left: 6px; }
+.btn-filters {
+  background: var(--bg2); border: none; color: var(--hint);
+  padding: 7px 12px; border-radius: 8px; font-size: 12px; cursor: pointer;
+}
+
+/* Chips */
+.chips-container {
+  display: flex; gap: 8px; padding: 10px 16px;
+  overflow-x: auto; scrollbar-width: none;
+}
+.chips-container::-webkit-scrollbar { display: none; }
+.chip {
+  background: var(--bg2); border: none; color: var(--hint);
+  padding: 6px 14px; border-radius: 20px; font-size: 12px;
+  white-space: nowrap; cursor: pointer; transition: all 0.15s;
+}
+.chip.active { background: var(--accent); color: var(--accent-text); }
+
+/* Tab bar */
+.tab-bar {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 10;
+  display: flex; background: var(--bg);
+  border-top: 1px solid rgba(255,255,255,0.08);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.tab {
+  flex: 1; background: none; border: none; color: var(--hint);
+  padding: 10px; font-size: 12px; cursor: pointer;
+}
+.tab.active { color: var(--accent); font-weight: 600; }
+
+/* Feed */
+.feed { padding: 4px 12px 12px; }
+
+/* Card */
+.card {
+  background: var(--bg2); border-radius: var(--radius);
+  overflow: hidden; margin-bottom: 12px; cursor: pointer;
+}
+.card-cover {
+  position: relative; height: 140px; overflow: hidden;
+  background: #374151;
+}
+.card-cover img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.card-cover-gradient {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 60px;
+  background: linear-gradient(to bottom, transparent, var(--bg2));
+}
+.card-cover-placeholder {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 40px;
+}
+.badge {
+  position: absolute; top: 10px;
+  background: rgba(0,0,0,0.55); backdrop-filter: blur(4px);
+  padding: 3px 9px; border-radius: 20px; font-size: 10px; font-weight: 600;
+}
+.badge-category { left: 10px; color: #a5b4fc; }
+.badge-price-free { right: 10px; color: #86efac; }
+.badge-price-paid { right: 10px; color: #fca5a5; }
+.card-body { padding: 12px 14px 14px; }
+.card-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.card-desc {
+  font-size: 12px; color: var(--hint); margin-bottom: 8px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.card-meta { font-size: 11px; color: var(--hint); margin-bottom: 10px; }
+.card-meta .date { color: var(--text); }
+.card-speakers { font-size: 11px; color: var(--hint); margin-bottom: 6px; }
+.card-actions { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+.btn-go {
+  background: var(--accent); color: var(--accent-text);
+  border: none; padding: 7px 14px; border-radius: 8px;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.btn-save {
+  background: #374151; border: none; color: var(--text);
+  padding: 7px 10px; border-radius: 8px; font-size: 13px; cursor: pointer;
+}
+.btn-save.saved { color: #f59e0b; }
+
+/* Bottom sheet */
+.sheet-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 20;
+}
+.bottom-sheet {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 21;
+  background: var(--bg2); border-radius: 16px 16px 0 0;
+  padding: 12px 16px 32px; max-height: 85vh; overflow-y: auto;
+}
+.sheet-handle {
+  width: 36px; height: 4px; background: #4b5563;
+  border-radius: 2px; margin: 0 auto 16px;
+}
+
+/* Empty state */
+.empty-state {
+  padding: 60px 32px; text-align: center; color: var(--hint);
+}
+
+/* Loader */
+.loader {
+  padding: 40px; display: flex; justify-content: center;
+}
+.spinner {
+  width: 28px; height: 28px; border: 3px solid var(--bg2);
+  border-top-color: var(--accent); border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Filter sheet */
+.filter-section { margin-bottom: 20px; }
+.filter-label { font-size: 11px; color: var(--hint); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+.filter-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.filter-chip {
+  background: #374151; border: 1.5px solid transparent; color: var(--text);
+  padding: 6px 14px; border-radius: 20px; font-size: 12px; cursor: pointer;
+}
+.filter-chip.active { border-color: var(--accent); color: var(--accent); }
+.sheet-actions { display: flex; gap: 10px; margin-top: 20px; }
+.btn-reset {
+  flex: 1; background: #374151; border: none; color: var(--hint);
+  padding: 12px; border-radius: 10px; font-size: 14px; cursor: pointer;
+}
+.btn-apply {
+  flex: 2; background: var(--accent); border: none; color: var(--accent-text);
+  padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+
+/* Detail sheet */
+.detail-cover { width: 100%; height: 200px; object-fit: cover; border-radius: 10px; margin-bottom: 14px; }
+.detail-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+.detail-meta { font-size: 13px; color: var(--hint); margin-bottom: 12px; line-height: 1.6; }
+.detail-desc { font-size: 14px; color: var(--text); line-height: 1.6; margin-bottom: 14px; }
+.btn-register {
+  width: 100%; background: var(--accent); color: var(--accent-text);
+  border: none; padding: 14px; border-radius: 12px;
+  font-size: 15px; font-weight: 600; cursor: pointer;
+}
