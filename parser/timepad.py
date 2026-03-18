@@ -1,7 +1,11 @@
+import os
+import logging
 import requests
 from datetime import datetime
 from typing import Optional
 from parser.base import EventData
+
+log = logging.getLogger(__name__)
 
 TIMEPAD_API = "https://api.timepad.ru/v1/events"
 HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; EventsBot/1.0)"}
@@ -20,6 +24,11 @@ CATEGORY_MAP = {
 
 class TimepadParser:
     def fetch(self, days_ahead: int = 90) -> list[EventData]:
+        token = os.environ.get("TIMEPAD_TOKEN")
+        headers = {**HEADERS}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+
         params = {
             "fields": "id,name,description_short,starts_at,url,location,ticket_types,categories,poster_image",
             "cities": "Москва",
@@ -27,10 +36,11 @@ class TimepadParser:
             "skip": 0,
         }
         try:
-            resp = requests.get(TIMEPAD_API, params=params, headers=HEADERS, timeout=10)
+            resp = requests.get(TIMEPAD_API, params=params, headers=headers, timeout=10)
             resp.raise_for_status()
             data = resp.json()
-        except Exception:
+        except Exception as e:
+            log.warning(f"Timepad fetch failed: {e}")
             return []
 
         events = []
