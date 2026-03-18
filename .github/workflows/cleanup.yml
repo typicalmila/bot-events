@@ -1,0 +1,46 @@
+# .github/workflows/cleanup.yml
+name: Weekly Cleanup
+
+on:
+  schedule:
+    - cron: "0 3 * * 1"   # Monday 06:00 Moscow
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Delete stale events
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          python - <<'EOF'
+          import os
+          from datetime import datetime, timedelta, timezone
+          from supabase import create_client
+
+          supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_KEY"])
+          cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+
+          # Delete expired events (bypasses RLS via service key)
+          result = supabase.table("events").delete().lt("event_date", cutoff).execute()
+          print(f"Deleted {len(result.data)} stale events")
+
+          # Delete unapproved events older than 48h
+          cutoff_48h = (datetime.now(timezone.utc) - timedelta(hours=48)).isoformat()
+          result2 = supabase.table("events").delete() \
+              .eq("is_approved", False).lt("created_at", cutoff_48h).execute()
+          print(f"Deleted {len(result2.data)} unapproved events")
+          EOF
