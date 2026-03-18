@@ -90,7 +90,7 @@ TELETHON_APP_ID=your_app_id
 TELETHON_APP_HASH=your_app_hash
 TELETHON_SESSION=base64_encoded_session
 TELEGRAM_CHANNELS=@channel1,@channel2,@channel3
-GITHUB_TOKEN=your_github_token
+GH_PAT=your_github_personal_access_token
 GITHUB_REPO=owner/repo
 ```
 
@@ -215,12 +215,20 @@ The Edge Function runs on Deno (Supabase runtime). It receives `initData` from t
 
 ```typescript
 // supabase/functions/verify-telegram/index.ts
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// Signs a JWT directly using SUPABASE_JWT_SECRET — more reliable than magic-link flow.
+// JWT secret is in: Supabase Dashboard → Settings → API → JWT Secret
+import { create } from "https://deno.land/x/djwt@v3.0.1/mod.ts";
 
 const BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN")!;
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const JWT_SECRET = Deno.env.get("SUPABASE_JWT_SECRET")!;
 const MAX_AGE_SECONDS = 86400; // 24 hours
+
+async function getJwtKey(secret: string): Promise<CryptoKey> {
+  return await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]
+  );
+}
 
 async function verifyInitData(initData: string): Promise<Record<string, string> | null> {
   const params = new URLSearchParams(initData);
@@ -277,27 +285,22 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: "no user id" }), { status: 401 });
   }
 
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-  const { data: session, error } = await supabase.auth.admin.generateLink({
-    type: "magiclink",
-    email: `tg_${userId}@telegram.internal`,
-    options: { data: { user_id: userId } }
-  });
+  // Mint JWT directly with user_id in claims — picked up by RLS via request.jwt.claims
+  const now = Math.floor(Date.now() / 1000);
+  const key = await getJwtKey(JWT_SECRET);
+  const token = await create(
+    { alg: "HS256", typ: "JWT" },
+    {
+      sub: `tg_${userId}`,
+      role: "authenticated",
+      user_id: userId,          // used by RLS: request.jwt.claims->>'user_id'
+      iat: now,
+      exp: now + MAX_AGE_SECONDS,
+    },
+    key
+  );
 
-  if (error) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
-  }
-
-  // Exchange magic link for access token
-  const tokenRes = await supabase.auth.verifyOtp({
-    token_hash: session.properties.hashed_token,
-    type: "magiclink"
-  });
-
-  return new Response(JSON.stringify({
-    access_token: tokenRes.data.session?.access_token,
-    user_id: userId
-  }), {
+  return new Response(JSON.stringify({ access_token: token, user_id: userId }), {
     headers: {
       "Content-Type": "application/json",
       "Access-Control-Allow-Origin": "*"
@@ -315,8 +318,9 @@ supabase link --project-ref YOUR_PROJECT_REF
 supabase functions deploy verify-telegram --no-verify-jwt
 ```
 
-Set secret in Supabase Dashboard → Edge Functions → Secrets:
+Set secrets in Supabase Dashboard → Edge Functions → Secrets:
 - `TELEGRAM_BOT_TOKEN` = your bot token
+- `SUPABASE_JWT_SECRET` = from Supabase Dashboard → Settings → API → JWT Secret
 
 - [ ] **Step 3: Commit**
 
@@ -1079,12 +1083,10 @@ class TelegramChannelsParser:
         session_b64 = os.environ.get("TELETHON_SESSION", "")
         if session_b64:
             session_bytes = base64.b64decode(session_b64)
-            # Write to temp file for Telethon
-            with open("/tmp/events_session.session", "wb") as f:
+            # Write to working directory — consistent with Actions session-update step
+            with open("events_session.session", "wb") as f:
                 f.write(session_bytes)
-            self.session = "/tmp/events_session"
-        else:
-            self.session = "events_session"
+        self.session = "events_session"
 
         self.app_id = int(os.environ["TELETHON_APP_ID"])
         self.app_hash = os.environ["TELETHON_APP_HASH"]
