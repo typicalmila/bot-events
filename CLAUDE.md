@@ -74,13 +74,44 @@ Events are deduplicated via `UNIQUE(source, source_event_id)` + `ON CONFLICT DO 
 | GitHub Pages | Hosts `miniapp/` at `https://typicalmila.github.io/bot-events/miniapp/` |
 | GitHub Actions | Cron parsers + cleanup |
 
+## Known Issues
+
+- **Timepad API requires token** — returns 403 without `Authorization: Bearer <token>`. Set `TIMEPAD_TOKEN` env var. Without it parser returns `[]` silently (now logs a warning).
+- **Afisha.ru and Yandex Afisha are JS-rendered** — live scraping returns empty pages. Parsers will fetch 0 events in production until a headless browser solution is added.
+- **Telethon session bootstrap** — first-time session creation requires interactive phone auth. Run locally, then base64-encode the `.session` file and store as `TELETHON_SESSION` secret.
+- **GitHub Pages path** — Pages can only serve from `/` or `/docs` on the branch root, not arbitrary subdirectories. Mini App is served from root with `/miniapp/` path prefix.
+- **`SUPABASE_JWT_SECRET` is a reserved prefix** in Supabase secrets — use `JWT_SECRET` when setting via `supabase secrets set`. The value is auto-injected as `SUPABASE_JWT_SECRET` at runtime.
+
 ## Required Secrets
 
 **Supabase Edge Function secrets** (set via `supabase secrets set`):
-- `TELEGRAM_BOT_TOKEN`, `JWT_SECRET` — `SUPABASE_JWT_SECRET` is injected automatically
+- `TELEGRAM_BOT_TOKEN`, `JWT_SECRET` — `SUPABASE_JWT_SECRET` is injected automatically by Supabase at runtime
 
 **GitHub Actions secrets**:
 - `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_ANON_KEY`
 - `TELEGRAM_BOT_TOKEN`
 - `TELETHON_APP_ID`, `TELETHON_APP_HASH`, `TELETHON_SESSION`, `TELEGRAM_CHANNELS`
 - `GH_PAT` — needs `repo` + `workflow` + `secrets:write` scopes
+
+## Deployment
+
+```bash
+# Install Supabase CLI (no brew/sudo needed)
+curl -fsSL https://github.com/supabase/cli/releases/latest/download/supabase_darwin_arm64.tar.gz | tar -xz -C ~/bin
+
+# Link project (run once)
+SUPABASE_ACCESS_TOKEN=<token> ~/bin/supabase link --project-ref vluxrkshzonvpsushqhz
+
+# Apply migration via Management API (no psql needed)
+SQL=$(cat supabase/migrations/001_initial_schema.sql | python3 -c "import sys,json; print(json.dumps(sys.stdin.read()))")
+curl -X POST "https://api.supabase.com/v1/projects/vluxrkshzonvpsushqhz/database/query" \
+  -H "Authorization: Bearer <supabase_access_token>" \
+  -H "Content-Type: application/json" \
+  -d "{\"query\": $SQL}"
+```
+
+**Live URLs:**
+- Mini App: `https://typicalmila.github.io/bot-events/miniapp/`
+- Edge Function: `https://vluxrkshzonvpsushqhz.supabase.co/functions/v1/verify-telegram`
+- Supabase project: `https://supabase.com/dashboard/project/vluxrkshzonvpsushqhz`
+- GitHub repo: `https://github.com/typicalmila/bot-events`
