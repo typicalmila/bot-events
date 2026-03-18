@@ -1,7 +1,7 @@
 // Replace these with your actual Supabase project values before deploy
 // SUPABASE_ANON_KEY is intentionally public-safe (read-only, RLS enforced)
-const SUPABASE_URL = "YOUR_SUPABASE_URL";
-const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+const SUPABASE_URL = "https://vluxrkshzonvpsushqhz.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_qnQhqWNToeC1jFrHnwb_rA_GGUZklfx";
 const VERIFY_URL = `${SUPABASE_URL}/functions/v1/verify-telegram`;
 
 let _accessToken = null;
