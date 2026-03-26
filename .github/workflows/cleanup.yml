@@ -2,9 +2,7 @@
 name: Weekly Cleanup
 
 on:
-  schedule:
-    - cron: "0 3 * * 1"   # Monday 06:00 Moscow
-  workflow_dispatch:
+  workflow_dispatch:        # manual trigger only (cron disabled)
 
 jobs:
   cleanup:
